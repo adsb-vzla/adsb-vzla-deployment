@@ -1,0 +1,30 @@
+# ***** USAR LA IMAGEN OFICIAL DE ALPINE LINUX *****
+FROM alpine:latest
+
+# ***** INSTALAR LAS DEPENDENCIAS NECESARIAS *****
+
+# ***** LIGHTTPD: EL SERVIDOR WEB *****
+# ***** FCGIWRAP Y SPAWN-FCGI: PARA EJECUTAR SCRIPTS CGI (COMO GET_ELEVATION.SH) *****
+# ***** GDAL: PARA EL PROCESAMIENTO DE DATOS GEOESPACIALES (ELEVACIÓN) *****
+# ***** BASH Y CURL: UTILIDADES GENERALES *****
+RUN apk add --no-cache lighttpd fcgiwrap spawn-fcgi gdal bash curl
+
+# ***** CREAR LOS DIRECTORIOS QUE LIGHTTPD ESPERA ENCONTRAR SEGÚN LA CONFIGURACIÓN *****
+RUN mkdir -p /run/readsb-a /run/readsb-b /run/readsb-c /run/readsb-d \
+    && mkdir -p /var/www/html \
+    && mkdir -p /usr/local/share/osm_tiles_offline \
+    && mkdir -p /opt/srtm \
+    && mkdir -p /var/globe_history \
+    && mkdir -p /var/log/lighttpd \
+    && mkdir -p /var/cache/lighttpd/uploads \
+    && chown -R lighttpd:lighttpd /var/log/lighttpd /var/cache/lighttpd
+
+# ***** COPIAR CONTENIDO DEL ARCHIVO DE CONFIGURACIÓN DE LIGHTTPD Y COLOCADO EN LA CARPETA DE CONFIGURACIÓN POR DEFECTO DE LIGHTTPD *****
+COPY ./config/lighttpd/lighttpd.conf /etc/lighttpd/lighttpd.conf
+
+# ***** EXPONER PUERTO 80 *****
+EXPOSE 80
+
+# ***** 1. INICIAR FCGIWRAP EN SEGUNDO PLANO USANDO SPAWN-FCGI *****
+# ***** 2. INICIAR LIGHTTPD EN PRIMER PLANO (PARA QUE EL CONTENEDOR NO SE CIERRE) *****
+CMD ["sh", "-c", "spawn-fcgi -s /var/run/fcgiwrap.socket -U lighttpd -G lighttpd -- /usr/sbin/fcgiwrap && lighttpd -D -f /etc/lighttpd/lighttpd.conf"]

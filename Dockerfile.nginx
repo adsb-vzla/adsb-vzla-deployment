@@ -1,0 +1,26 @@
+# ***** USAR LA IMAGEN OFICIAL DE NGINX BASADA EN ALPINE LINUX *****
+FROM nginx:alpine
+
+# ***** INSTALAR LAS DEPENDENCIAS NECESARIAS *****
+
+# ***** FCGIWRAP Y SPAWN-FCGI: PARA EJECUTAR SCRIPTS CGI (COMO GET_ELEVATION.SH) *****
+# ***** GDAL: PARA EL PROCESAMIENTO DE DATOS GEOESPACIALES (ELEVACIÓN) *****
+# ***** BASH Y CURL: UTILIDADES GENERALES *****
+RUN apk add --no-cache fcgiwrap spawn-fcgi gdal bash curl
+
+# ***** CREAR LOS DIRECTORIOS QUE NGINX ESPERA ENCONTRAR SEGÚN LA CONFIGURACIÓN *****
+RUN mkdir -p /run/readsb-a /run/readsb-b /run/readsb-c /run/readsb-d \
+    && mkdir -p /usr/local/share/tar1090/html \
+    && mkdir -p /usr/local/share/osm_tiles_offline \
+    && mkdir -p /opt/srtm \
+    && mkdir -p /var/globe_history
+
+# ***** COPIAR CONTENIDO DEL ARCHIVO DE CONFIGURACIÓN DE NGINX Y COLOCADO EN LA CARPETA DE CONFIGURACIÓN POR DEFECTO DE NGINX *****
+COPY ./config/nginx/nginx.conf /etc/nginx/conf.d/default.conf
+
+# ***** EXPONER PUERTO 80 *****
+EXPOSE 80
+
+# ***** 1. INICIAR FCGIWRAP EN SEGUNDO PLANO USANDO SPAWN-FCGI *****
+# ***** 2. INICIAR NGINX EN PRIMER PLANO (PARA QUE EL CONTENEDOR NO SE CIERRE) *****
+CMD ["sh", "-c", "spawn-fcgi -s /var/run/fcgiwrap.socket -U www-data -G www-data -- /usr/sbin/fcgiwrap && nginx -g 'daemon off;'"]

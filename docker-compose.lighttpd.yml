@@ -1,0 +1,97 @@
+# ***** VERSIÓN DEL FORMATO DE DOCKER COMPOSE *****
+version: '3.8'
+
+services:
+  # ***** CONTENEDOR WEB (LIGHTTPD) *****
+  web:
+    # ***** INDICA QUÉ DOCKERFILE USAR PARA CONSTRUIR ESTE CONTENEDOR *****
+    build:
+      context: .
+      dockerfile: Dockerfile.lighttpd
+    # ***** NOMBRE DEL CONTENEDOR EN EL SISTEMA *****
+    container_name: adsb_web_lighttpd
+    # ***** POLÍTICA DE REINICIO *****
+    restart: unless-stopped
+    # ***** MAPEO DE PUERTOS *****
+    ports:
+      - "80:80"
+    # ***** VOLÚMENES (CARPETAS COMPARTIDAS) *****
+    volumes:
+      # ***** CARPETA HTML DE TAR1090 *****
+      - /usr/local/share/tar1090/html:/var/www/html
+      # ***** MAPAS OFFLINE *****
+      - /usr/local/share/osm_tiles_offline:/usr/local/share/osm_tiles_offline:ro
+      # ***** DATOS DE ELEVACIÓN (SRTM) *****
+      - /opt/srtm:/opt/srtm:ro
+      # ***** SCRIPT CGI DE ELEVACIÓN *****
+      - ./scripts/get_elevation.sh:/usr/lib/cgi-bin/get_elevation.sh:ro
+      # ***** ARCHIVOS GENERADOS POR READSB *****
+      - /run/readsb-a:/run/readsb-a:ro
+      - /run/readsb-b:/run/readsb-b:ro
+      - /run/readsb-c:/run/readsb-c:ro
+      - /run/readsb-d:/run/readsb-d:ro
+      # ***** HISTORIAL DE REPLAY *****
+      - /var/globe_history:/var/globe_history:ro
+      # ***** CONFIGURACIÓN PERSONALIZADA DE LIGHTTPD *****
+      - ./config/lighttpd/lighttpd.conf:/etc/lighttpd/lighttpd.conf:ro
+    # ***** DEPENDENCIAS *****
+    depends_on:
+      - auth
+
+  # ***** CONTENEDOR BACKEND (FLASK/GUNICORN) *****
+  auth:
+    # ***** INDICA QUÉ DOCKERFILE USAR *****
+    build:
+      context: .
+      dockerfile: Dockerfile.auth
+    # ***** NOMBRE DEL CONTENEDOR *****
+    container_name: adsb_auth
+    # ***** POLÍTICA DE REINICIO *****
+    restart: unless-stopped
+    # ***** VOLÚMENES *****
+    volumes:
+      # ***** CÓDIGO PYTHON *****
+      - ./auth:/app
+      # ***** BASE DE DATOS SQLITE *****
+      - ./data:/app/data
+    # ***** VARIABLES DE ENTORNO *****
+    environment:
+      - FLASK_ENV=production
+
+  # ***** CONTENEDOR DE PLANES DE VUELO (DJANGO) *****
+  flight-plans:
+    # ***** USA EL DOCKERFILE DE LA CARPETA FLIGHT-PLANS *****
+    build:
+      context: ./flight-plans
+      dockerfile: Dockerfile
+    container_name: adsb_flight_plans
+    restart: unless-stopped
+    # ***** VOLÚMENES *****
+    volumes:
+      - ./flight-plans:/code
+      - flight_plans_db:/var/lib/postgresql/data
+    # ***** VARIABLES DE ENTORNO *****
+    environment:
+      - DJANGO_ALLOWED_HOSTS=*
+    # ***** DEPENDENCIAS *****
+    depends_on:
+      - flight-plans-db
+
+  # ***** CONTENEDOR DE BASE DE DATOS (POSTGRESQL) *****
+  flight-plans-db:
+    # ***** IMAGEN OFICIAL DE POSTGRESQL *****
+    image: postgres:15-alpine
+    container_name: adsb_flight_plans_db
+    restart: unless-stopped
+    # ***** VARIABLES DE ENTORNO *****
+    environment:
+      - POSTGRES_DB=postgres
+      - POSTGRES_USER=postgres
+      - POSTGRES_PASSWORD=postgres
+    # ***** VOLUMEN PERSISTENTE *****
+    volumes:
+      - flight_plans_db:/var/lib/postgresql/data
+
+# ***** DECLARACIÓN DE VOLÚMENES NOMBRADOS *****
+volumes:
+  flight_plans_db:

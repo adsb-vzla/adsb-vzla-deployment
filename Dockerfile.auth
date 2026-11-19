@@ -1,0 +1,20 @@
+# ***** USAR UNA IMAGEN OFICIAL DE PYTHON 3.11 *****
+FROM python:3.11-slim
+
+# ***** ESTABLECER EL DIRECTORIO DE TRABAJO DENTRO DEL CONTENEDOR *****
+WORKDIR /app
+
+# ***** COPIAR PRIMERO EL ARCHIVO DE REQUERIMIENTOS PARA APROVECHAR LA CACHÉ DE DOCKER *****
+COPY ./auth/requirements.txt /app/requirements.txt
+
+# ***** INSTALAR LAS DEPENDENCIAS DE PYTHON *****
+RUN pip install --no-cache-dir -r requirements.txt
+
+# ***** COPIAR EL RESTO DEL CÓDIGO (DB_ACCESS.PY, INIT_DB.PY, ETC.) *****
+COPY ./auth/ /app/
+
+# ***** EXPONER EL PUERTO 5000 (EL QUE USA GUNICORN POR DEFECTO) *****
+EXPOSE 5000
+
+# ***** LEVANTAR GUNICORN CON 2 WORKERS EN EL PUERTO 5000 *****
+CMD ["gunicorn", "-w", "2", "-b", "0.0.0.0:5000", "db_access:app"]

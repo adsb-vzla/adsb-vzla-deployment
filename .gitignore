@@ -1,0 +1,20 @@
+# ***** IGNORAR CARPETAS DE DATOS PESADOS *****
+data/
+srtm/
+osm_tiles_offline/
+flight-plans/
+html/
+
+# ***** IGNORAR ARCHIVOS DE BASE DE DATOS *****
+*.db
+*.sqlite3
+
+# ***** IGNORAR ARCHIVOS DE PYTHON *****
+__pycache__/
+*.pyc
+venv/
+.env
+
+# ***** IGNORAR ARCHIVOS DEL SISTEMA *****
+.DS_Store
+Thumbs.db
